@@ -26,14 +26,13 @@
       buildConfiguration = "Debug"
       selectedDebuggerIdentifier = "Xcode.DebuggerFoundation.Debugger.LLDB"
       selectedLauncherIdentifier = "Xcode.DebuggerFoundation.Launcher.LLDB"
-      shouldUseLaunchSchemeArgsEnv = "YES"
-      codeCoverageEnabled = "YES">
+      shouldUseLaunchSchemeArgsEnv = "YES">
       <Testables>
          <TestableReference
             skipped = "NO">
             <BuildableReference
                BuildableIdentifier = "primary"
-               BlueprintIdentifier = "6E0FC45920F873B1009269B4"
+               BlueprintIdentifier = "6EE84D8D1CAF419D00A40C4D"
                BuildableName = "GATTTests.xctest"
                BlueprintName = "GATTTests"
                ReferencedContainer = "container:GATT.xcodeproj">

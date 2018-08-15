@@ -1,2 +1,2 @@
-github "PureSwift/Bluetooth" "145b073fb5ba780210bd2782b378beb1097a07f0"
-github "PureSwift/GATT" "d0386d0cbb8bf73a1ce046a481fb79d10d7187e6"
+github "PureSwift/Bluetooth" "4db1da99bdaf015f9eb3c9ec88ecb5f922ee05e5"
+github "PureSwift/GATT" "1.7.0"

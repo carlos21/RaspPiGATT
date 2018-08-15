@@ -9,151 +9,95 @@
 import Foundation
 import Bluetooth
 
-/// GATT Advertisement Data.
-public protocol AdvertisementDataProtocol: Equatable {
+public struct AdvertisementData {
     
     /// The local name of a peripheral.
-    var localName: String? { get }
+    public let localName: String?
     
     /// The Manufacturer data of a peripheral.
-    var manufacturerData: Data? { get }
+    public let manufacturerData: Data?
     
-    /// A Boolean value that indicates whether the advertising event type is connectable.
-    var isConnectable: Bool? { get }
+    /// Service-specific advertisement data.
+    public let serviceData: [BluetoothUUID: Data]
+    
+    /// An array of service UUIDs
+    public let serviceUUIDs: [BluetoothUUID]
+    
+    /// An array of one or more `BluetoothUUID`, representing Service UUIDs that were found
+    /// in the “overflow” area of the advertisement data.
+    public let overflowServiceUUIDs: [BluetoothUUID]
     
     /// This value is available if the broadcaster (peripheral) provides its Tx power level in its advertising packet.
     /// Using the RSSI value and the Tx power level, it is possible to calculate path loss.
-    var txPowerLevel: Double? { get }
+    public let txPowerLevel: Double?
     
-    /// Service-specific advertisement data.
-    var serviceData: [BluetoothUUID: Data] { get }
-    
-    /// An array of service UUIDs
-    var serviceUUIDs: [BluetoothUUID] { get }
+    /// A Boolean value that indicates whether the advertising event type is connectable.
+    public let isConnectable: Bool?
     
     /// An array of one or more `BluetoothUUID`, representing Service UUIDs.
-    var solicitedServiceUUIDs: [BluetoothUUID] { get }
+    public let solicitedServiceUUIDs: [BluetoothUUID]
 }
 
-
-public struct AdvertisementData: AdvertisementDataProtocol {
-    
-    public let data: Data
-    
-    public init(data: Data) {
-        
-        self.data = data
-    }
-}
+// MARK: - Equatable
 
 extension AdvertisementData: Equatable {
     
     public static func == (lhs: AdvertisementData, rhs: AdvertisementData) -> Bool {
         
-        return lhs.data == rhs.data
+        return lhs.localName == rhs.localName
+            && lhs.manufacturerData == rhs.manufacturerData
+            && lhs.serviceData == rhs.serviceData
+            && lhs.serviceUUIDs == rhs.serviceUUIDs
+            && lhs.overflowServiceUUIDs == rhs.overflowServiceUUIDs
+            && lhs.txPowerLevel == rhs.txPowerLevel
+            && lhs.isConnectable == rhs.isConnectable
+            && lhs.solicitedServiceUUIDs == rhs.solicitedServiceUUIDs
     }
 }
 
-// MARK: - Accessors
+// MARK: - CoreBluetooth
 
-public extension AdvertisementData {
+#if os(macOS) || os(iOS) || os(tvOS) || (os(watchOS) && swift(>=3.2))
     
-    /// The local name of a peripheral.
-    public var localName: String? {
+    import Foundation
+    import CoreBluetooth
+    
+    internal extension AdvertisementData {
         
-        let types: [GAPData.Type] = [
-            GAPCompleteLocalName.self,
-            GAPShortLocalName.self
-        ]
-        
-        guard let decoded = try? GAPDataDecoder.decode(data, types: types, ignoreUnknownType: true)
-            else { return nil }
-        
-        let completeNames = decoded.flatMap { $0 as? GAPCompleteLocalName }
-        let shortNames = decoded.flatMap { $0 as? GAPShortLocalName }
-        
-        return completeNames.first?.name ?? shortNames.first?.name
+        init(_ coreBluetooth: [String: Any]) {
+            
+            self.localName = coreBluetooth[CBAdvertisementDataLocalNameKey] as? String
+            
+            self.manufacturerData = coreBluetooth[CBAdvertisementDataManufacturerDataKey] as? Data
+            
+            if let coreBluetoothServiceData = coreBluetooth[CBAdvertisementDataServiceDataKey] as? [CBUUID: Data] {
+                
+                var serviceData = [BluetoothUUID: Data](minimumCapacity: coreBluetoothServiceData.count)
+                
+                for (key, value) in coreBluetoothServiceData {
+                    
+                    let uuid = BluetoothUUID(coreBluetooth: key)
+                    
+                    serviceData[uuid] = value
+                }
+                
+                self.serviceData = serviceData
+                
+            } else {
+                
+                self.serviceData = [:]
+            }
+            
+            self.serviceUUIDs = (coreBluetooth[CBAdvertisementDataServiceUUIDsKey] as? [CBUUID])?.map { BluetoothUUID(coreBluetooth: $0) } ?? []
+            
+            self.overflowServiceUUIDs = (coreBluetooth[CBAdvertisementDataOverflowServiceUUIDsKey] as? [CBUUID])?.map { BluetoothUUID(coreBluetooth: $0) } ?? []
+            
+            self.txPowerLevel = (coreBluetooth[CBAdvertisementDataTxPowerLevelKey] as? NSNumber)?.doubleValue
+            
+            self.isConnectable = (coreBluetooth[CBAdvertisementDataIsConnectable] as? NSNumber)?.boolValue
+            
+            self.solicitedServiceUUIDs = (coreBluetooth[CBAdvertisementDataSolicitedServiceUUIDsKey] as? [CBUUID])?.map { BluetoothUUID(coreBluetooth: $0) } ?? []
+        }
     }
     
-    /// The Manufacturer data of a peripheral.
-    public var manufacturerData: Data? {
-        
-        return (try? GAPDataDecoder.decode(data, types: [GAPManufacturerSpecificData.self], ignoreUnknownType: true))?
-            .flatMap { $0 as? GAPManufacturerSpecificData }
-            .first?.data
-    }
-    
-    /// Service-specific advertisement data.
-    public var serviceData: [BluetoothUUID: Data] {
-        
-        return [:]
-    }
-    
-    /// An array of service UUIDs
-    public var serviceUUIDs: [BluetoothUUID] {
-        
-        let types: [GAPData.Type] = [
-            GAPCompleteListOf16BitServiceClassUUIDs.self,
-            GAPIncompleteListOf16BitServiceClassUUIDs.self,
-            GAPCompleteListOf32BitServiceClassUUIDs.self,
-            GAPIncompleteListOf32BitServiceClassUUIDs.self,
-            GAPCompleteListOf128BitServiceClassUUIDs.self,
-            GAPIncompleteListOf128BitServiceClassUUIDs.self
-        ]
-        
-        guard let decoded = try? GAPDataDecoder.decode(data, types: types, ignoreUnknownType: true),
-            decoded.isEmpty == false
-            else { return [] }
-        
-        var uuids = [BluetoothUUID]()
-        
-        uuids += decoded
-            .flatMap { $0 as? GAPCompleteListOf16BitServiceClassUUIDs }
-            .reduce([BluetoothUUID](), { $0.0 + $0.1.uuids.map { BluetoothUUID.bit16($0) } })
-        
-        uuids += decoded
-            .flatMap { $0 as? GAPIncompleteListOf16BitServiceClassUUIDs }
-            .reduce([BluetoothUUID](), { $0.0 + $0.1.uuids.map { BluetoothUUID.bit16($0) } })
-        
-        uuids += decoded
-            .flatMap { $0 as? GAPCompleteListOf32BitServiceClassUUIDs }
-            .reduce([BluetoothUUID](), { $0.0 + $0.1.uuids.map { BluetoothUUID.bit32($0) } })
-        
-        uuids += decoded
-            .flatMap { $0 as? GAPIncompleteListOf32BitServiceClassUUIDs }
-            .reduce([BluetoothUUID](), { $0.0 + $0.1.uuids.map { BluetoothUUID.bit32($0) } })
-        
-        uuids += decoded
-            .flatMap { $0 as? GAPCompleteListOf128BitServiceClassUUIDs }
-            .reduce([BluetoothUUID](), { $0.0 + $0.1.uuids.map { BluetoothUUID(uuid: $0) } })
-        
-        uuids += decoded
-            .flatMap { $0 as? GAPIncompleteListOf128BitServiceClassUUIDs }
-            .reduce([BluetoothUUID](), { $0.0 + $0.1.uuids.map { BluetoothUUID(uuid: $0) } })
-        
-        return uuids
-    }
-    
-    /// This value is available if the broadcaster (peripheral) provides its Tx power level in its advertising packet.
-    /// Using the RSSI value and the Tx power level, it is possible to calculate path loss.
-    public var txPowerLevel: Double? {
-        
-        guard let gapData = (try? GAPDataDecoder.decode(data, types: [GAPManufacturerSpecificData.self], ignoreUnknownType: true))?.first as? GAPTxPowerLevel else { return nil }
-        
-        return Double(gapData.powerLevel)
-    }
-    
-    /// A Boolean value that indicates whether the advertising event type is connectable.
-    public var isConnectable: Bool? {
-        
-        return (try? GAPDataDecoder.decode(data, types: [GAPManufacturerSpecificData.self], ignoreUnknownType: true))?
-            .flatMap { $0 as? GAPFlags }
-            .first?.flags.contains(.lowEnergyGeneralDiscoverableMode)
-    }
-    
-    /// An array of one or more `BluetoothUUID`, representing Service UUIDs.
-    public var solicitedServiceUUIDs: [BluetoothUUID] {
-        
-        return []
-    }
-}
+#endif

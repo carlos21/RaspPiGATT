@@ -10,30 +10,19 @@ import Foundation
 import Bluetooth
 
 /// The data for a scan result.
-public struct ScanData <Peripheral: Peer, Advertisement: AdvertisementDataProtocol> {
-    
-    /// The discovered peripheral.
-    public let peripheral: Peripheral
+public struct ScanData {
     
     /// Timestamp for when device was scanned.
     public let date: Date
+    
+    /// The discovered peripheral.
+    public let peripheral: Peripheral
     
     /// The current received signal strength indicator (RSSI) of the peripheral, in decibels.
     public let rssi: Double
     
     /// Advertisement data.
-    public let advertisementData: Advertisement
-    
-    public init(peripheral: Peripheral,
-                date: Date = Date(),
-                rssi: Double,
-                advertisementData: Advertisement) {
-        
-        self.peripheral = peripheral
-        self.date = date
-        self.rssi = rssi
-        self.advertisementData = advertisementData
-    }
+    public let advertisementData: AdvertisementData
 }
 
 // MARK: - Equatable
@@ -48,3 +37,4 @@ extension ScanData: Equatable {
             && lhs.advertisementData == rhs.advertisementData
     }
 }
+

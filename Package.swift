@@ -9,7 +9,7 @@ let package = Package(
         Target(name: "RaspPiGATT")
     ],
     dependencies: [
-        .Package(url: "git@github.com:PureSwift/GATT.git", majorVersion: 2)
+        .Package(url: "git@github.com:PureSwift/GATT.git", "1.7.0")
     ]
 )
 
