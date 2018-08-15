@@ -11,11 +11,13 @@ import GATT
 
 public protocol GATTServiceController: class {
     
-    static var service: GATTProfileService.Type { get }
-    var peripheral: PeripheralProtocol { get }
-    init(peripheral: PeripheralProtocol) throws
+    associatedtype Peripheral: PeripheralProtocol
     
-    func willRead(_ request: GATTReadRequest) -> ATT.Error?
-    func willWrite(_ request: GATTWriteRequest) -> ATT.Error?
-    func didWrite(_ request: GATTWriteConfirmation)
+    static var service: GATTProfileService.Type { get }
+    var peripheral: Peripheral { get }
+    init(peripheral: Peripheral) throws
+    
+    func willRead(_ request: GATTReadRequest<Peripheral.Central>) -> ATT.Error?
+    func willWrite(_ request: GATTWriteRequest<Peripheral.Central>) -> ATT.Error?
+    func didWrite(_ request: GATTWriteConfirmation<Peripheral.Central>)
 }
